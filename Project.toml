@@ -1,0 +1,10 @@
+name = "EllipticCoversOscar"
+uuid = "8ad5aec1-3394-4e76-9fb4-62099650952a"
+authors = ["Mohamed Abdellatif Kallel"]
+version = "0.1.0"
+
+[deps]
+Oscar = "f1435218-dba5-11e9-1e4d-b6b6b8e4f80a"
+
+[compat]
+julia = "1.10"  
