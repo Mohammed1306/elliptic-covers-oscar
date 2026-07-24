@@ -13,22 +13,22 @@ export genus3_cover_from_three_elliptic_curves
 struct ExplicitMorphism
     source::Any
     target::Any
-    x_map::Any
-    y_map::Any
+    x::Any
+    y::Any
     source_coordinates::Any
     target_coordinates::Any
 end
 
 function formulas(phi::ExplicitMorphism)
-    return phi.x_map, phi.y_map
+    return phi.x, phi.y
 end
 
 function as_dict(phi::ExplicitMorphism)
     return Dict(
         "source" => phi.source,
         "target" => phi.target,
-        "x" => phi.x_map,
-        "y" => phi.y_map,
+        "x" => phi.x,
+        "y" => phi.y,
         "source_coordinates" => phi.source_coordinates,
         "target_coordinates" => phi.target_coordinates,
     )
@@ -252,12 +252,55 @@ function genus2_cover_from_two_elliptic_curves(E, F, alpha_roots, beta_roots)
     return C, morphisms
 end
 
-function _point_xy(P)
-    if P isa Tuple || P isa AbstractVector
-        return P[1], P[2]
+function _to_point(E, P)
+    try
+        if parent(P) == E
+            return P
+        end
+    catch
     end
 
-    error("pass points as [x, y] or (x, y) in this OSCAR port")
+    if P isa Tuple || P isa AbstractVector
+        return E(collect(P))
+    end
+
+    try
+        xP, yP = _point_xy(P)
+        return E([xP, yP])
+    catch
+        error("P must be a point on E")
+    end
+end
+
+function _is_infinity(E, P)
+    return P == infinity(E)
+end
+
+function _point_xy(P)
+    try
+        zP = P[3]
+
+        if iszero(zP)
+            error("point at infinity has no affine coordinates")
+        end
+
+        return P[1] / zP, P[2] / zP
+    catch
+    end
+
+    if P isa Tuple || P isa AbstractVector
+        if length(P) == 2
+            return P[1], P[2]
+        elseif length(P) == 3
+            if iszero(P[3])
+                error("point at infinity has no affine coordinates")
+            end
+
+            return P[1] / P[3], P[2] / P[3]
+        end
+    end
+
+    error("could not read affine coordinates of the point")
 end
 
 function genus2_cover_from_point(E, P)
@@ -267,10 +310,17 @@ function genus2_cover_from_point(E, P)
         error("the base field must have characteristic different from 2")
     end
 
+    P_K = _to_point(E, P)
+
+    if _is_infinity(E, P_K)
+        error("P must be a finite point on E")
+    end
+
     a1, a2, a3, a4, a6 = [K(c) for c in a_invariants(E)]
-    xP_raw, yP_raw = _point_xy(P)
-    xP = K(xP_raw)
-    yP = K(yP_raw)
+
+    xP, yP = _point_xy(P_K)
+    xP = K(xP)
+    yP = K(yP)
 
     R, x = polynomial_ring(K, :x)
 
@@ -368,21 +418,80 @@ function genus2_cover_from_point(E, P)
 end
 
 function genus2_cover_from_two_points(E, P, Q)
-    a1, _, a3, _, _ = a_invariants(E)
+    K = base_field(E)
 
-    xP, yP = _point_xy(P)
-    xQ, yQ = _point_xy(Q)
-
-    if xQ == xP && yQ == -yP - a1*xP - a3
-        C, F, morphisms = genus2_cover_from_point(E, P)
-        morphisms["phase_3_translation"] = Dict(
-            "original_points" => Dict("P" => P, "Q" => Q),
-            "relation" => Dict("opposite_points" => "Q = -P"),
-        )
-        return C, F, morphisms
+    if characteristic(K) == 2
+        error("the base field must have characteristic different from 2")
     end
 
-    error("automatic half-point translation is not implemented yet in the OSCAR port; pass opposite points for now")
+    P_K = _to_point(E, P)
+    Q_K = _to_point(E, Q)
+
+    if parent(P_K) != E
+        error("P must be a point on E")
+    end
+
+    if parent(Q_K) != E
+        error("Q must be a point on E")
+    end
+
+    if _is_infinity(E, P_K)
+        error("P must be a finite point on E")
+    end
+
+    if _is_infinity(E, Q_K)
+        error("Q must be a finite point on E")
+    end
+
+    target = -(P_K + Q_K)
+
+    half_points = division_points(target, 2)
+
+    if length(half_points) == 0
+        error("could not find a point T such that 2*T = -(P + Q) over the current base field")
+    end
+
+    T = half_points[1]
+
+    P_new = P_K + T
+    Q_new = Q_K + T
+
+    if _is_infinity(E, P_new)
+        error("after translation, P became the point at infinity")
+    end
+
+    if _is_infinity(E, Q_new)
+        error("after translation, Q became the point at infinity")
+    end
+
+    if P_new + Q_new != infinity(E)
+        error("translation failed: the two points did not become opposites")
+    end
+
+    if Q_new != -P_new
+        error("translation failed: Q_new is not the negative of P_new")
+    end
+
+    C, F, morphisms = genus2_cover_from_point(E, P_new)
+
+    morphisms["phase_3_translation"] = Dict(
+        "original_points" => Dict(
+            "P" => P_K,
+            "Q" => Q_K,
+        ),
+        "target" => target,
+        "translation_point" => T,
+        "translated_points" => Dict(
+            "P_new" => P_new,
+            "Q_new" => Q_new,
+        ),
+        "relation" => Dict(
+            "half_point_equation" => "2*T = -(P + Q)",
+            "opposite_points" => "Q_new = -P_new",
+        ),
+    )
+
+    return C, F, morphisms
 end
 
 function _genus3_normal_form_from_root(E, root, K)

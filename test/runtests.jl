@@ -8,6 +8,8 @@ using EllipticCoversOscar
     @test phi.source == "C"
     @test phi.target == "E"
     @test formulas(phi) == ("x^2", "y")
+    @test phi.x == "x^2"
+    @test phi.y == "y"
 end
 
 @testset "Genus 2 from one point" begin
@@ -67,4 +69,20 @@ end
     @test morphisms["C_to_F1"] isa ExplicitMorphism
     @test morphisms["C_to_F2"] isa ExplicitMorphism
     @test morphisms["C_to_F3"] isa ExplicitMorphism
+end
+
+@testset "Genus 2 from two points" begin
+    E = elliptic_curve(QQ, [0, -8, 0, 8, 0])
+
+    P = E([QQ(1), QQ(1)])
+    Q = -P
+
+    C, F, morphisms = genus2_cover_from_two_points(E, P, Q)
+
+    @test cover_genus(C) == 2
+    @test cover_genus(F) == 1
+    @test haskey(morphisms, "C_to_E")
+    @test haskey(morphisms, "C_to_F")
+    @test haskey(morphisms, "phase_3_translation")
+    @test morphisms["phase_3_translation"]["relation"]["opposite_points"] == "Q_new = -P_new"
 end
