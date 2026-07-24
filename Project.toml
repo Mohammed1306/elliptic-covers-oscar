@@ -4,7 +4,13 @@ authors = ["Mohamed Abdellatif Kallel"]
 version = "0.1.0"
 
 [deps]
-Oscar = "f1435218-dba5-11e9-1e4d-b6b6b8e4f80a"
+Oscar = "f1435218-dba5-11e9-1e4d-f1a5fab5fc13"
 
 [compat]
-julia = "1.10"  
+julia = "1.10"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]

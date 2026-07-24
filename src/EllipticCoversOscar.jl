@@ -2,7 +2,7 @@ module EllipticCoversOscar
 
 using Oscar
 
-export ExplicitMorphism
+export ExplicitMorphism, formulas
 
 struct ExplicitMorphism
     source
@@ -13,6 +13,8 @@ struct ExplicitMorphism
     target_coordinates
 end
 
-formulas(phi::ExplicitMorphism) = (phi.x_map, phi.y_map)
+function formulas(phi::ExplicitMorphism)
+    return phi.x_map, phi.y_map
+end
 
 end
